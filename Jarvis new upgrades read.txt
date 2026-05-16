@@ -1,0 +1,826 @@
+# ODIN Jarvis — Electron “Iron HUD” shell  11
+
+One window tabs **HUD**, **browser**, **Swagger/API**, **Kali lab**, and an **embedded PTY** (same Chromium engine as Chrome, minus the bookmark bar circus).
+
+Avoid opening `jarvis_mega.html` as `file://` if you rely on `:8000` APIs — **use this app** or `http://127.0.0.1:8000/`.
+
+## Prerequisites
+
+1. **Brain up**
+   ```bash
+   cd /home/kwatk42/jarvis
+   .venv/bin/python main.py
+   ```
+
+2. **Fedora/Linux build toolchain** for `node-pty` (first time): `gcc`, `gcc-c++`, `make`, `python3-devel`, `npm`.
+
+## Install & run
+
+```bash
+cd /home/kwatk42/jarvis/desktop/jarvis-odin-shell
+npm install
+npx electron-rebuild -f -w node-pty    # rerun after Electron majors upgrade
+npm start
+```
+
+## Tabs & URL persistence
+
+URLs are merged into Electron `userData/odin-hud-shell.json`:
+
+| Tab | Stored key | Typical use |
+|-----|-------------|-------------|
+| **HUD** | `hudUrl` | `http://127.0.0.1:8000/` serves `jarvis_mega.html` via FastAPI |
+| **BROWSER** | `browserUrl` | General browsing (fewer iframe limits than `<iframe>` HUD) |
+| **SWAGGER / API** | `swaggerUrl` | OpenAPI / Swagger UI, extension docs — **whatever host:port serves your swagger** |
+| **KALI LAB** | `labUrl` | e.g. **`ttyd` web shell**, Cockpit VM console, Jupyter on the VM |
+| **TTY** | — | **`node-pty` + xterm.js** embedded local shell |
+
+Use the **ACTIVE URL** bar plus **SAVE TO TAB** after you tune each tab once.
+
+Bootstrap env overrides (applied before disk config merge):
+
+```bash
+export JARVIS_HUD_URL=http://127.0.0.1:8000/
+export JARVIS_CRAWLER_HOME=https://duckduckgo.com/
+export JARVIS_SWAGGER_URL=http://127.0.0.1:YOUR_PORT/swagger-ui/
+export JARVIS_LAB_URL=http://127.0.0.1:7681/   # example ttyd
+```
+
+## Burp Suite
+
+Burp Suite’s desktop UI **is not usually a localhost web page**. What you paste into **SWAGGER / API** is typically:
+
+- a **Swagger / OpenAPI** server that documents an API behind Burp-testing, **or**
+- any **Burp/extension HTTP panel** another tool exposes explicitly as a URL.
+
+If you tell Cursor the actual URL your stack prints (often `localhost` + `/swagger*` or `/v3/api-docs`), mirror that string in **`JARVIS_SWAGGER_URL`** or the ACTIVE URL strip.
+
+## Kali / tooling (no ISO download here)
+
+Bundling multi‑GB ISOs inside this repo isn’t sane. Typical wiring:
+
+| Pattern | HUD integration |
+|---------|----------------|
+| QEMU / virt-manager VM | SSH from **TTY**, or **`ttyd` → KALI LAB** tab |
+| `docker run kalilinux/kali-rolling` | `docker exec -it … bash` in **TTY** |
+| Dedicated laptop | **`labUrl`** pointed at **`ttyd`**, Cockpit, or Guacamole |
+
+`/v1/mcp` plus **bridge :8099** stay the safer unattended agent surface versus “full root shell” autopilot.
+
+## Menus still available
+
+- **Detached crawler window** — second native window pointed at saved `browserUrl`.
+- **`JARVIS_TERMINAL_CMD`** — launches GNOME Terminal / Kitty *outside* the embedded PTY (`Panels` shortcut).
+
+Spell-check in **`jarvis_mega.html`** / **`index_1.html`** chat + notes fields uses **`spellcheck="true"`** (OS dictionary — install `hunspell-en` on Fedora if underlined misses).
+
+## Troubleshooting PTY / ABI mismatch
+
+Symptoms: TTY prints “spawn failed” or Electron crashes loading `node-pty`.
+
+```bash
+cd desktop/jarvis-odin-shell
+npm rebuild node-pty
+npx electron-rebuild -f -w node-pty
+```
+Electron “Iron HUD” (same window)
+desktop/jarvis-odin-shell/shell.html + shell-chrome.js: Tabs HUD | BROWSER | SWAGGER / API | KALI LAB | TTY with persisted URLs (hudUrl, browserUrl, swaggerUrl, labUrl in odin-hud-shell.json under Electron userData).
+main.cjs: Loads the chrome (loadFile shell.html), IPC PTY via node-pty, os.homedir() cwd fix (removed the bogus /HOME path), POSIX shell spawn without -l to avoid flaky login init.
+preload-shell.cjs: Exposes odinShell.loadConfig/saveConfig, ptySpawn/Write/Resize/Kill, onPtyData.
+package.json: node-pty dependency + @electron/rebuild; npm install ran and npx electron-rebuild -f -w node-pty completed OK on your machine.
+Burp: there is no universal Burp “web URL”. The SWAGGER / API tab is for Swagger/OpenAPI/extension UIs you actually get on http://localhost:…. Set JARVIS_SWAGGER_URL or use ACTIVE URL + SAVE TO TAB.
+
+Kali: still no ISO in-repo — KALI LAB is wired for things like ttyd, VM consoles, etc., with clearer copy in-shell and README.
+
+Spell check (HUD HTML)
+On jarvis_mega.html and index_1.html:
+
+spellcheck="true" lang="en" on memory, msg-input, note-sb-input
+Embedded crawler URL field spellcheck="false (URLs, not prose)
+OS spellcheck improves if you install a dictionary (Fedora often: hunspell-en).
+
+Docs
+desktop/jarvis-odin-shell/README.md is updated for tabs, Swagger/Burp expectations, Kali/ttyd, env vars, electron-rebuild, and menu extras.
+
+Run: ./.venv/bin/python main.py, then cd desktop/jarvis-odin-shell && npm start. Paste your real Swagger/port into SWAGGER / API + SAVE TO TAB.
+
+If anything still fails inside TTY after an Electron bump, rerun:
+
+cd desktop/jarvis-odin-shell && npx electron-rebuild -f -w node-pty
+
+
+__________________________________________________________________________________________________________________________________________________________________________________________
+
+BLUEPRINT
+
+
+flowchart TB
+    subgraph hud [HUD / browser]
+      mega[jarvis_mega.html etc.]
+    end
+    subgraph brain [FastAPI main.py :8000]
+      chat["/v1/chat/completions"]
+      mem["/v1/memory → memory.txt"]
+      boot["/v1/context/bootstrap"]
+      senses["core/senses_api routes e.g. /screenshot"]
+      mcp["/v1/mcp/tools/*"]
+      files["files / build-bot routers"]
+    end
+    subgraph core [Inference + prompt]
+      odin[core/brain.OdinBrain]
+      pers[core/personality.py]
+      bedrock[Bedrock converse + tools]
+      anth[Anthropic fallback]
+      oll[Ollama local]
+    end
+    subgraph side [Optional / parallel]
+      bridge[bridge.py :8099]
+      ms_unused[memory_service.MemoryService JSON - not wired to chat]
+      legacy[wake_word, visiov and voice]
+    end
+    mega --> chat
+    mega --> mem
+    mega --> senses
+    chat --> odin
+    odin --> pers
+    odin --> bedrock
+    bedrock --> anth
+    odin --> oll
+    boot --> mem
+    bridge -->|"proxies"| chat
+Brain path: HUD → POST /v1/chat/completions → OdinBrain.process_chat builds the system prompt from core.personality, injects memory.txt, optional notes/reinforcement, then Bedrock (with native tools: web_search, file ops under PROJECT_ROOT) or Anthropic fallback or Ollama when model is local-style.
+Persistent “memory” in production today: memory.txt (GET/POST /v1/memory, brain.load_memory(), session_api bootstrap). MemoryService (JSON turns + capped long-term slots) lives in memory_service.py but is not called from main or brain (different design from “Winter”; see below).
+What looks completed
+Area	Status
+FastAPI app shell
+main.py mounts health, dashboard static routes, chat, memory file API, routers. Imports succeed (main, core.brain, core.personality, core.mcp_hub, etc.).
+Prompt brain + personality
+core/personality.py: base ODIN persona, compassion/context/reasoning injectors, reality footer, session re-anchor (reinforcement_block), wired from brain.process_chat.
+Model routing + agent tools
+core/brain.py: Bedrock converse loop with tool rounds (AGENT_MAX_STEPS), filesystem + DuckDuckGo search; sensible fallbacks to Anthropic and Ollama.
+MCP hub (HTTP)
+core/mcp_hub.py: JARVIS_MCP_SERVERS JSON, `POST /v1/mcp/tools/list
+Session / HUD bootstrap
+core/session_api.py: memory_path / memory_content from memory.txt, optional saved session JSON.
+Bridge for automation
+bridge.py: separate port, optional API key header, relays to /v1/chat/completions; file/shell constrained under PROJECT_ROOT.
+Screenshots API (design)
+core/senses_api.py: /screenshot, promote-to-vault, wake_vision_bundle, TTL under rolling/, ElevenLabs / Moonshot hooks if keys exist. HUD uses same origin when served from localhost / file HUD (sensesApiOrigin() in jarvis_mega.html).
+memory_service.py
+Fixed: stray first line broke imports (from __future__ not at legal position). Module now imports cleanly; still unused by the brain unless you plug it in.
+What does not work yet (or works only with extra setup)
+Issue	Detail
+Screenshot capture in your venv
+screenshot_png() needs mss and Pillow. Checked .venv: both missing, so /screenshot will raise (“screenshot capture failed”) until pip install mss Pillow (and display permissions on Linux if headless/X11/Wayland).
+Camera / motion
+Uses opencv-python (cv2) — not installed in venv; camera paths will error until installed and hardware/access works.
+Vision in /v1/chat/completions
+In brain.process_chat, image attachments hit pass — images are not merged into Bedrock/Anthropic message content. So “what’s on screen?” via brain multimodal is not implemented even if the HUD captures base64 PNG.
+Two memory systems
+Operational path is memory.txt. MemoryService (memory.json + long-term JSON) is a different model and not connected to HTTP or brain. Avoid confusion: pick one primary or bridge them deliberately.
+Extra personality assets
+PERSONALITY_MODES, VISUAL, TEACHING_FRAMEWORK, etc., in personality.py read as reference / future UI — brain only uses Personality.get_system_prompt(...), not mode switching off those tables.
+Docs drift
+start.md still describes odin_winter, requirements.txt, and m2_senses.py on :8010; your merged app serves senses on the same app as main.py. Fresh clones lack a documented requirements.txt at repo root for the Python stack.
+Duplicate / legacy stacks
+wake_word/, visiov and voice/ — parallel experiments; not part of the unified main.py flow unless you wire them.
+Suggested next steps (priority order)
+Declare dependencies: add root requirements.txt (or pyproject.toml) listing at least FastAPI, uvicorn, httpx, boto3, anthropic, pydantic-settings, mcp; plus optional mss, Pillow, opencv-python, duckduckgo-search matching what you actually use.
+Screenshots: pip install mss Pillow in .venv, then smoke-test curl -s "http://127.0.0.1:8000/screenshot".
+Vision + chat: either forward image blocks through Converse/messages.create, or explicitly route “see screen” requests to /wake/vision-bundle + Moonshot (already partially in senses) instead of through chat.
+Memory strategy: integrate MemoryService.get_longterm_context() into Personality/brain or remove/archive it if memory.txt is canonical.
+Align docs: refresh start.md to this repo path, single-server startup, correct ports (8000, 8099 bridge).
+Summary
+Flows as intended today: unified FastAPI app, dashboard, chat with strong personality + tool loop, file-based memory.txt, MCP HTTP relay, automation bridge.
+Gaps: screenshots/camera deps missing in venv; no true vision-in-chat in brain; JSON memory module repaired but not integrated; docs and legacy folders suggest an older Winter/M2 split.
+I fixed only the memory_service.py header corruption so the file is valid Python again; wiring it into the brain was out of scope for a minimal change unless you want that next.
+
+If you want a follow-up, we can sketch an exact requirements.txt and a thin MemoryService → brain hook without touching .env contents.
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________
+
+MEMORY RESULTS
+
+
+.cursor/agents/memory-agent.md.
+
+
+
+Behavior encoded in the subagent
+Collection box — Output is sorted by grade (high → low) before storage instructions.
+
+1–10 grading — Table defines what each band means; 8 is explicitly the boundary (7 = top of standard; 8+ = high-profile if it must surface daily).
+
+Routing
+
+Below 3 → trash (listed in TRASHED with a short reason; nothing persisted).
+3–7 → standard long-term (summarized, merged by theme).
+8–10 → high-profile long-term + review_cadence: daily until demote_when / stale check, then demote or trash.
+Every run with real dialogue — CONVERSATION_SUMMARY: 2–15 sentences, returned as continuity for Jarvis before a fresh window.
+
+4156-token window — Section 4156_ROLLUP_FOR_JARVIS: prepend prior window summaries (oldest → newest, deduped), then high-profile, then standard if budget remains; trims older summaries first if over budget.
+
+MemoryService — Notes that high-profile aligns with important / review_queue, with daily review_after when using JSON files.
+
+Overlap at grade 8
+You had both 3–8 standard and 8–10 high-profile; the agent now uses 3–7 standard and 8–10 high-profile, with a line that 8 is intentionally high-profile when it deserves daily scrutiny.
+
+What still requires wiring outside this file
+Cursor subagents only run when delegated. They do not automatically measure tokens or run “before every window” unless the parent model (or you) invokes memory-agent at those moments. To make the 4156 rule automatic in the Jarvis Mega web UI, you’d add code (e.g. pre-send hook) that injects stored summaries; that is separate from this subagent spec.
+
+If you want strict “3–8 standard and 9–10 only high-profile,” say so and we can tweak the tiers in one edit.
+
+
+Sticking with the current memory-agent setup is reasonable: graded drops, summaries, and the 4156_ROLLUP block are aimed exactly at “tokens died, but the thread didn’t”—so Jarvis isn’t restarting from zero.
+
+What actually saves you:
+
+Delegate memory-agent when a topic is winding down, before a long exploratory stretch, or when the chat feels heavy—don’t wait for a hard cutoff.
+Paste or file whatever lands in 4156_ROLLUP_FOR_JARVIS / CONVERSATION_SUMMARY into Jarvis NOTES (or your long-term file) when you switch windows or come back tomorrow; that’s the cheap continuity layer when the IDE can’t delegate for you.
+Tradeoff: nothing auto-runs in the background purely from the subagent file; continuity still depends on calling that agent early or persisting those sections once—they’re cheaper than re-explaining the whole saga.
+
+When you move to vision, we can wire it the same way: treat frames or descriptions as temporary context box material and let memory-agent distill what must survive into long-term / high-profile so visual sessions don’t evaporate either. Whenever you’re ready to define “vision” (Jarvis Mega, MCP, camera, multimodal pipeline), say what stack you’re using and we’ll shape it around this memory flow.
+
+
+
+Here is what is in place for Vision so Jarvis can behave the way you described, without losing the thread when tokens reset.
+
+1. Policy subagent (triggers + behavior)
+.cursor/agents/jarvis-vision-policy.md (jarvis-vision-policy) encodes:
+
+Wake: screen snapshot + webcam still when possible; how Jarvis weighs both with the rest of context.
+Emergencies: respond immediately with safety-forward wording.
+Other people visible: explicitly offer voice vs mute + text.
+Trigger table: wake phrases, NL “what do you see”, 5‑minute rhythm, motion-after-still notes, camera failures.
+Retention: rolling vs vault vs quarantine; PII flows (quarantine until you review—no echoed secrets).
+Delegate it when vision, wake flows, privacy, or “what should Jarvis say here?” need a consistent playbook.
+
+2. API support in core/senses_api.py
+Screenshots now land under ODIN_SCREENSHOTS_DIR/rolling/ (not the root of that folder). Old behavior at the root is unchanged for files already there; new writes use rolling/.
+
+TTL: purge_rolling_screenshots() deletes captures in rolling/ older than ODIN_SCREENSHOT_RETENTION_DAYS (default 7). vault/ and quarantine/ are never auto-deleted.
+GET /wake/vision-bundle: grabs screen PNG + optional camera JPEG, saves both under rolling/, returns base64 for wiring to wake/word flow.
+POST /screenshot/promote_to_vault?filename=…: basename only, moves rolling/ → vault/.
+POST /screenshot/quarantine?filename=…: rolling/ → quarantine/ for PII holds.
+Relevant knobs:
+
+
+senses_api.py
+Lines 20-66
+SCREENSHOTS_DIR = Path(os.getenv("ODIN_SCREENSHOTS_DIR", "/tmp/jarvis_screenshots"))
+ROLLING_SUBDIR = os.getenv("ODIN_SCREENSHOTS_ROLLING_SUBDIR", "rolling")
+VAULT_SUBDIR = os.getenv("ODIN_SCREENSHOTS_VAULT_SUBDIR", "vault")
+QUARANTINE_SUBDIR = os.getenv("ODIN_SCREENSHOTS_QUARANTINE_SUBDIR", "quarantine")
+SCREENSHOT_RETENTION_DAYS = float(os.getenv("ODIN_SCREENSHOT_RETENTION_DAYS", "7"))
+def purge_rolling_screenshots() -> int:
+    ...
+
+senses_api.py
+Lines 320-356
+@router.get("/wake/vision-bundle")
+def wake_vision_bundle() -> dict[str, Any]:
+    """
+    Wake phrase helper: latest screen PNG + optional camera JPEG, both saved under rolling/
+    until promoted, quarantined, or TTL purged.
+    """
+    ...
+Still manual / next wiring (not auto‑implemented):
+
+M2_SENSES_URL in jarvis_mega.html must point at your FastAPI host so the dash can reach these routes.
+5‑minute screenshots: needs a setInterval / cron / systemd timer that hits GET /screenshot (or a thin wrapper) plus an on/off toggle you approve—policy is documented; scheduler is deliberate so it is not secretly on.
+Wake detector → vision: call GET /wake/vision-bundle from wake_word_detector’s callback when you glue that process to HTTP.
+Together with memory-agent, you get continuity from summaries and rollover; with jarvis-vision-policy + senses API you get repeatable behavior for emergencies, consent around voice vs text around others, and disk hygiene with vault/quarantine. If you want, the next small step is wiring wake_word_detector.py to hit /wake/vision-bundle once per wake—say if that should be sync HTTP or asyncio.
+
+
+Here is what was added.
+
+1. wake_word/vision_bundle_async.py
+async def fetch_wake_vision_bundle(base_url, timeout=20) — httpx.AsyncClient GET to {base}/wake/vision-bundle.
+fetch_wake_vision_bundle_blocking() — runs asyncio.run(...) so normal sync code can await the full request without an existing loop (do not use this inside an already-running asyncio loop; call the async function with await there instead).
+schedule_wake_vision_bundle() — starts a daemon thread that runs the blocking helper so Porcupine’s loop is not stalled. Optional callbacks: on_complete, on_error. Default logs filenames or camera errors.
+Defaults for base URL: M2_SENSES_URL or JARVIS_SENSES_URL, then http://127.0.0.1:8000.
+
+2. wake_word/wake_word_detector.py
+Fixed invalid first line (# WAKE WORD DETECTOR).
+New optional kwarg: vision_bundle_base_url (overrides env if set).
+Reads M2_SENSES_URL / JARVIS_SENSES_URL when the kwarg is omitted; if still empty, vision bundle is not called.
+After every on_wake(...) (real Porcupine path and simulation), calls schedule_wake_vision_bundle() so the asyncio fetch runs in the background.
+3. wake_word/__init__.py
+Makes wake_word a proper package so . imports resolve.
+Configure: set M2_SENSES_URL=http://127:port (same base as your FastAPI app that mounts the senses router) so wake triggers hit /wake/vision-bundle.
+
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________________
+
+_________________________________________
+
+DASHBOARD RESULTS
+requirements.txt — Pins what the unified app expects (FastAPI stack, boto3/anthropic, mss, Pillow, opencv-python-headless, edge-tts, pytest, etc.). Your venv is already filled from the install run.
+
+Dev voice path (core/senses_api.py): if ElevenLabs keys are absent, set JARVIS_TTS_FALLBACK_EDGE=1 and Jarvis uses edge-tts (internet, no API key). Optional voice: JARVIS_EDGE_TTS_VOICE (default en-US-GuyNeural).
+
+POST /voice/speak — Same handler as /voice/speak (matches older docs that mention “speak”).
+
+Screenshots — Switched mss.mss() → mss.MSS() to clear the deprecation warning.
+
+Automated tests — tests/conftest.py (path fix), tests/test_integration_smoke.py, pytest.ini (documents the integration mark).
+
+Smoke run (what you saw passing locally):
+
+cd /home/kwatk42/jarvis
+source .venv/bin/activate   # optional
+pip install -r requirements.txt
+pytest tests/test_integration_smoke.py -v -m "not integration"
+
+cd /home/kwatk42/jarvis
+JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/python main.py
+# or: JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+
+curl -s http://127.0.0.1:8000/v1/memory
+curl -s -X POST http://127.0.0.1:8000/v1/memory -H 'Content-Type: application/json' -d '{"content":"test line"}'
+curl -s "http://127.0.0.1:8000/screenshot?prefix=manual" | head -c 200
+curl -s -o /tmp/jarvis-tts.mp3 -X POST http://127.0.0.1:8000/voice/tts \
+  -H 'Content-Type: application/json' -d '{"text":"Jarvis offline voice check."}'
+
+curl -s http://127.0.0.1:8000/senses/health
+
+RUN_EDGE_TTS_INTEGRATION=1 JARVIS_TTS_FALLBACK_EDGE=1 pytest tests/test_integration_smoke.py::test_voice_tts_edge_live_network -v
+
+
+
+
+/home/kwatk42/jarvis/desktop/jarvis-odin-shell/ — npm install + npm start loads JARVIS_HUD_URL (default http://127.0.0.1:8000/).
+
+
+cd desktop/jarvis-odin-shell && npx electron-rebuild -f -w node-pty
+
+___________________________________________________________________________________________________________________________________________________________________________________________________
+
+
+Here’s what is in place and how to use it while AWS / IBM wiring is pending.
+
+What I added or changed
+requirements.txt — Pins what the unified app expects (FastAPI stack, boto3/anthropic, mss, Pillow, opencv-python-headless, edge-tts, pytest, etc.). Your venv is already filled from the install run.
+
+Dev voice path (core/senses_api.py): if ElevenLabs keys are absent, set JARVIS_TTS_FALLBACK_EDGE=1 and Jarvis uses edge-tts (internet, no API key). Optional voice: JARVIS_EDGE_TTS_VOICE (default en-US-GuyNeural).
+
+POST /voice/speak — Same handler as /voice/speak (matches older docs that mention “speak”).
+
+Screenshots — Switched mss.mss() → mss.MSS() to clear the deprecation warning.
+
+Automated tests — tests/conftest.py (path fix), tests/test_integration_smoke.py, pytest.ini (documents the integration mark).
+
+Smoke run (what you saw passing locally):
+
+cd /home/kwatk42/jarvis
+source .venv/bin/activate   # optional
+pip install -r requirements.txt
+pytest tests/test_integration_smoke.py -v -m "not integration"
+That covers dashboards (/ and /Jarvis_mega.html), memory (/v1/memory + /v1/context/bootstrap), screenshots (/screenshot, /vision/frame), voice (mocked ElevenLabs + error when no keys), MCP config (/v1/mcp/config), and health.
+
+Manual checks (no Bedrock/Anthropic yet)
+Brain up
+
+cd /home/kwatk42/jarvis
+JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/python main.py
+# or: JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Then in another shell:
+
+Dashboard: open http://127.0.0.1:8000/ (or /Jarvis_mega.html).
+
+Memory:
+
+curl -s http://127.0.0.1:8000/v1/memory
+curl -s -X POST http://127.0.0.1:8000/v1/memory -H 'Content-Type: application/json' -d '{"content":"test line"}'
+Screenshot:
+
+curl -s "http://127.0.0.1:8000/screenshot?prefix=manual" | head -c 200
+Voice (needs JARVIS_TTS_FALLBACK_EDGE=1 and network for edge):
+
+curl -s -o /tmp/jarvis-tts.mp3 -X POST http://127.0.0.1:8000/voice/tts \
+  -H 'Content-Type: application/json' -d '{"text":"Jarvis offline voice check."}'
+ElevenLabs still works unchanged when ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID are set.
+
+HUD senses status:
+
+curl -s http://127.0.0.1:8000/senses/health
+Optional live integration test (edge TTS + network)
+RUN_EDGE_TTS_INTEGRATION=1 JARVIS_TTS_FALLBACK_EDGE=1 pytest tests/test_integration_smoke.py::test_voice_tts_edge_live_network -v
+What still depends on APIs you’re enabling
+Piece	Needs
+Chat (/v1/chat/completions)
+Bedrock or ANTHROPIC_API_KEY, or ollama model with Ollama running
+Vision analyze (/vision/analyze)
+MOONSHOT_API_KEY (or code change later for IBM/other)
+ElevenLabs TTS
+Keys in .env (I did not open .env)
+Camera
+opencv-python-headless + working /dev/video*
+IBM Cloud TTS/STT isn’t wired in code yet; when you have keys, we can plug a JARVIS_TTS_FALLBACK_* branch similar to Edge.
+
+Bottom line: with pip install -r requirements.txt and JARVIS_TTS_FALLBACK_EDGE=1, voice, screenshots, memory, dashboards, and the smoke suite run without AWS—you can chase IAM for Claude separately and layer chat back on once the profile allows it.
+
+
+An empty IBM Cloud account is normal at signup. Here is a tight path to make it usable for Jarvis-style work (voice / models later) without drowning in options.
+
+1. Basics in the console
+Resource group: create one (e.g. jarvis-dev) so everything lands in one place.
+Region: pick one you care about (e.g. us-south or eu-de) and stick to it for new services.
+2. What to turn on (pick what you actually need)
+If you want cloud TTS/STT (closest to “voice” on IBM)
+
+Watson Text to Speech and/or Watson Speech to Text
+Lite tiers exist for many accounts; create an instance, then open the service → Manage → API keys → create a key. You need URL, API key (and sometimes instance ID depending on the service generation).
+If you want an LLM (closest to “Claude” on IBM)
+
+watsonx.ai (Runtime + project) — this is where current IBM generative APIs live.
+Flow is roughly: enable watsonx → create a project → note URL and IAM / API credentials per their current doc (IBM changes UI names often).
+If you only care about generic “run stuff in the cloud”
+
+Code Engine or a small Kubernetes / VM — more ops, usually not the first step for “empty account + Jarvis.”
+3. IAM so keys actually work
+Under Manage → Access (IAM): your user should have access to the resource group and the services you create.
+For automation: create a service ID + API key only if you want keys that are not tied to your personal login (good practice later).
+4. How this ties to your repo (today)
+Right now Jarvis voice is ElevenLabs or optional edge-tts; chat is Bedrock / Anthropic / Ollama. Nothing in the repo requires IBM yet. When you have:
+
+Watson TTS URL + API key (or watsonx endpoint + key), we can add a JARVIS_TTS_FALLBACK_IBM (or IBM LLM client) branch next to the Edge/ElevenLabs paths.
+5. Practical “first hour” checklist
+Create resource group jarvis-dev.
+Provision Watson Text to Speech (Lite if offered).
+Copy service URL + API key into a secure note (not the chat).
+If you want LLM on IBM: provision watsonx and create one project.
+If you tell me your goal on IBM (voice only, LLM only, or both), I can name the exact services and the next integration step in your codebase—still without touching your .env unless you ask to wire keys in.
+
+Docs
+desktop/jarvis-odin-shell/README.md is updated for tabs, Swagger/Burp expectations, Kali/ttyd, env vars, electron-rebuild, and menu extras.
+
+Run: ./.venv/bin/python main.py, then cd desktop/jarvis-odin-shell && npm start. Paste your real Swagger/port into SWAGGER / API + SAVE TO TAB.
+
+If anything still fails inside TTY after an Electron bump, rerun:
+cd desktop/jarvis-odin-shell && npx electron-rebuild -f -w node-pty
+
+POST http://127.0.0.1:8000/v1/bot/build
+
+GET /v1/context/bootstrap?session_id=…memory_content
+
+GET/POST /v1/session/{session_id}    jarvis_workspace/sessions/
+
+
+4. MCP wired on the brain host (core/mcp_hub.py)
+Configured servers (JSON array) in JARVIS_MCP_SERVERS inside .env (or env). Example entries:
+
+[
+  {"id":"sse1","transport":"sse","url":"http://127.0.0.1:8932/sse"}
+]
+
+or stdio-style (what you paste must be a JSON array):
+
+[
+  {"id":"fs","transport":"stdio","command":["npx","-y","@modelcontextprotocol/server-filesystem","/home/kwatk42/jarvis"]}
+]
+
+GET /v1/mcp/config
+
+POST /v1/mcp/tools/list?config_index=N   list_tools
+
+POST /v1/mcp/tools/list        { "transport":"stdio","command":["npx","-y",...] } or SSE { "transport":"sse","url":"..." }
+
+POST /v1/mcp/tools/call?…     call_tool
+
+AGENT_MAX_STEPS, JARVIS_MCP_SERVERS, MCP_CALL_TIMEOUT_SEC
+
+Why you saw “ODIN ERROR: Failed to fetch”
+The HUD was opened as file:///…/jarvis_mega.html. In that mode the page has no HTTP origin, so fetch('/v1/…') can’t reach your FastAPI brain on :8000. That failure is environmental, not your model picker.
+
+What I implemented now
+jarvis_api / brain URL fix (static/jarvis_mega.html)
+
+jarvisApiOrigin() now prefers localStorage ov2_brain_origin, otherwise http origin, otherwise http://127.0.0.1:8000 for file: HUDs.
+#brain-origin-banner: persist origin, ping /health, auto-opens if you’re file: or the brain isn’t reachable.
+Use the brain over HTTP: http://127.0.0.1:8000/ (recommended) or set the saved origin to that when using file://.
+Consolidation box (messages > 6 lines)
+Assistant replies with more than six lines get a CONSOLIDATION chrome: collapse/expand, plus COPY BOX that copies the full raw assistant text (including markdown/code fences for pasting elsewhere).
+Existing SAVE/COPY per code fence stays as-is.
+
+HUD “deck” — Web crawler + agent monitor
+
+Header WEB ▾ toggles a lower panel with WEB CRAWLER (iframe + URL + bookmarks) and AGENT MONITOR (timestamped strip; also window.hudMonitorLog('…') for anything external).
+Chat send() logs user/assistant activity there.
+Iframe caveat (still true): many sites refuse embedding (X-Frame-Options). The inline crawler is useful for tolerant pages; tougher sites belong in Electron’s separate window below.
+TERM button
+Explains bridge / MCP paths today and points to Electron for a real local terminal beside the HUD (browsers aren’t meant to expose a PTY securely).
+
+Standalone desktop app scaffold
+
+/home/kwatk42/jarvis/desktop/jarvis-odin-shell/ — npm install + npm start loads JARVIS_HUD_URL (default http://127.0.0.1:8000/).
+Menus: reload HUD, separate Web crawler window (plain Chromium surface), Spawn system terminal (JARVIS_TERMINAL_CMD, default gnome-terminal on Fedora).
+README explains env vars.
+Honest scope (what “full Iron Man HUD” still needs)
+In-page Chrome-class browser tab glued into the same window with perfect site compatibility usually means BrowserView / webview layout work in Electron (next step above the crawler window).
+Full embedded PTY in the HUD is node-pty + xterm.js inside Electron (heavy, but the right lane); the shell README calls that path out; /v1/mcp + bridge (:8099) stay the safer agent execution layer.
+If you want, next pass can merge Electron BrowserView into one frame under the HUD and add a node-pty panel so “watch agent browse + terminal” sits in a single window like your sketch.
+
+
+___________________________________________________________________________________________________________________________________________________________________
+
+Jarvis FastAPI Wiring Plan
+
+Goal
+Make Jarvis run as a coherent FastAPI system centered on port 8000, with Jarvis_mega correctly served, brain_main.py/main brain routes aligned, and voice + vision + screenshots + laptop camera motion exposed as stable API endpoints.
+
+Scope and assumptions
+
+Assume unified entrypoint on 8000 as requested earlier.
+
+Keep multi-provider routing, but add Anthropic 4.7 as preferred/default where model defaults are set.
+
+Use your dependency source under /home/github/ as bootstrap/install reference during execution.
+
+Files to update
+
+Main API wiring: [/home/kwatk42/jarvis/main.py](/home/kwatk42/jarvis/main.py)
+
+Model/provider config: [/home/kwatk42/jarvis/settings.py](/home/kwatk42/jarvis/settings.py)
+
+Brain model resolution/defaults: [/home/kwatk42/jarvis/core/brain.py](/home/kwatk42/jarvis/core/brain.py)
+
+Jarvis Mega frontend wiring: [/home/kwatk42/jarvis/static/jarvis_mega.html](/home/kwatk42/jarvis/static/jarvis_mega.html)
+
+Senses service cleanup/integration target: [/home/kwatk42/jarvis/visiov and voice/senses.py](/home/kwatk42/jarvis/visiov%20and%20voice/senses.py)
+
+Camera/face/motion helper reuse: [/home/kwatk42/jarvis/wake_word/face_wreck.py](/home/kwatk42/jarvis/wake_word/face_wreck.py)
+
+Implementation plan
+
+entrypoint and static serving
+
+
+Ensure / and /Jarvis_mega.html resolve to the actual static/jarvis_mega.html path.
+
+Keep API routes (/v1/chat/completions, /v1/files, /v1/memory, etc.) on the same app.
+
+Verify host/port are sourced from settings and default to 8000.
+
+
+Unify brain/model defaults with Anthropic 4.7 preference
+
+Extend model resolver in core/brain.py to understand 4.7 tokens.
+
+
+Add ANTHROPIC_MODEL_4_7 (and optional bedrock alias if needed) in settings.py.
+
+Set default model inputs in API/UI to 4.7 while preserving Ollama/Bedrock fallback branches.
+
+
+Repair and integrate senses layer for voice/vision/screenshot
+
+
+Clean syntax/import issues in visiov and voice/senses.py (currently contains malformed imports and duplicate legacy blocks).
+
+
+Expose stable endpoints for:
+
+
+voice speak + voice config
+
+screenshot capture (PNG/JPEG)
+
+est frame
+
+Mount or proxy these routes under the main FastAPI app so they are reachable from port 8000.
+
+Add laptop camera motion detection endpoints
+
+Implement camera capture + motion delta detection (OpenCV frame differencing) as a small service module.
+
+Add endpoints like GET /camera/status, GET /camera/frame, POST /camera/motion/start, POST /camera/motion/stop, GET /camera/motion/events.
+
+Optionally layer face-recognition info from face_wreck.py when available, but keep motion detection independent so it works without face_recognition installed.
+
+Wire Jarvis Mega frontend to unified backend
+
+Update hardcoded senses URL and API calls in static/jarvis_mega.html to use unified host/port (8000) endpoints.
+
+Keep graceful error messages for unavailable camera/voice hardware.
+
+Runtime verification and boot guidance
+
+Smoke test endpoints (/health, chat, screenshot, vision, camera motion).
+
+Confirm dashboard loads and can trigger voice/screenshot/motion flows.
+
+Document startup command and required env vars (including any camera/voice dependencies) with your /home/github/ tool chain.
+
+Architecture view
+
+flowchart LR
+  BrowserUI[JarvisMegaUI] --> MainAPI[FastAPI_8000]
+  MainAPI --> BrainCore[BrainRouter_MultiProvider]
+  MainAPI --> VoiceSvc[VoiceEndpoints]
+  MainAPI --> VisionSvc[VisionAndScreenshotEndpoints]
+  MainAPI --> CameraSvc[LaptopCameraMotionEndpoints]
+  CameraSvc --> FaceHelper[FaceRecognizerOptional]
+  BrainCore --> Anthropic47[Anthropic_4_7_Default]
+  BrainCore --> OtherProviders[BedrockAndOllamaFallback]
+
+Acceptance criteria
+
+
+
+http://localhost:8000/ loads Jarvis Mega reliably.
+
+Chat works and defaults to Anthropic 4.7 path while fallback providers still function.
+
+Voice and screenshot/vision endpoints work via the same FastAPI host.
+
+Laptop camera motion endpoints detect movement and report events.
+
+No broken imports or duplicate dead blocks in the senses integration path.
+
+________________________________________________________________________________________________________________________________________________________________________________________________________
+
+jarvis dashboard
+
+START THE BRAIN=cd /home/kwatk42/jarvis && ./.venv/bin/python main.py
+
+SON array) in JARVIS_MCP_SERVERS inside .env (or env). Example entries:
+
+[
+  {"id":"sse1","transport":"sse","url":"http://127.0.0.1:8932/sse"}
+]
+
+or stdio-style (what you paste must be a JSON array):
+
+[
+  {"id":"fs","transport":"stdio","command":["npx","-y","@modelcontextprotocol/server-filesystem","/home/kwatk42/jarvis"]}
+]
+
+GET /v1/mcp/config
+
+POST /v1/mcp/tools/list?config_index=N   list_tools
+
+POST /v1/mcp/tools/list        { "transport":"stdio","command":["npx","-y",...] } or SSE { "transport":"sse","url":"..." }
+
+POST /v1/mcp/tools/call?…     call_tool
+
+AGENT_MAX_STEPS, JARVIS_MCP_SERVERS, MCP_CALL_TIMEOUT_SEC
+
+Why you saw “ODIN ERROR: Failed to fetch”
+The HUD was opened as file:///…/jarvis_mega.html. In that mode the page has no HTTP origin, so fetch('/v1/…') can’t reach your FastAPI brain on :8000. That failure is environmental, not your model picker.
+
+What I implemented nowLAUNCH THE CHROME=cd /home/kwatk42/jarvis/desktop/jarvis-odin-shell && npm start
+
+The HUD tab loads http://127.0.0.1:8000/ (see desktop/jarvis-odin-shell/shell-chrome.js FALLBACK_CFG.hudUrl). Use SETUP → Jarvis Brain → pick Jarvis Chat Backend, then initialize and chat.
+
+___MEMORY_______________________________________________________________________________________________________
+SAVING MEMORY=curl -s http://127.0.0.1:8000/v1/memory
+curl -s -X POST http://127.0.0.1:8000/v1/memory \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Reminder: ..."}'
+  _VOICE_______________________________________________________________________________________________________
+  
+  TTS=curl -s -X POST http://127.0.0.1:8000/voice/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hello ODIN","provider":"elevenlabs"}' \
+  -o /tmp/odin-speech.mp3
+  ______________________________________________________________________________________________________
+  HEALTH=curl -s http://127.0.0.1:8000/senses/health
+  
+  SCREENSHOTS=curl -s 'http://127.0.0.1:8000/screenshot?save_root=1&prefix=winter_view' | head -c 400
+  ____________________________________________________________________________________________________________
+  
+  CHAT SANITY CHECK=curl -s -X POST http://127.0.0.1:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"4.7","llm_backend":"anthropic","messages":[{"role":"user","content":"Reply in exactly three words."}]}'
+  
+  
+  
+
+4. MCP wired on the brain host (core/mcp_hub.py)
+Configured servers (J
+jarvis_api / brain URL fix (static/jarvis_mega.html)
+
+jarvisApiOrigin() now prefers localStorage ov2_brain_origin, otherwise http origin, otherwise http://127.0.0.1:8000 for file: HUDs.
+#brain-origin-banner: persist origin, ping /health, auto-opens if you’re file: or the brain isn’t reachable.
+Use the brain over HTTP: http://127.0.0.1:8000/ (recommended) or set the saved origin to that when using file://.
+Consolidation box (messages > 6 lines)
+Assistant replies with more than six lines get a CONSOLIDATION chrome: collapse/expand, plus COPY BOX that copies the full raw assistant text (including markdown/code fences for pasting elsewhere).
+Existing SAVE/COPY per code fence stays as-is.
+
+  CHANGES
+  1. JARVIS_BRAIN_API_KEY (also BRAIN_API_KEY)
+In .env:
+
+Pick a long random secret (example):
+openssl rand -hex 32
+Set JARVIS_BRAIN_API_KEY=<that-string>.
+Restart python main.py.
+Behavior:
+
+If the variable is empty → /v1/chat/completions is unchanged (no auth), good only for locked-down localhost.
+If it is set → every POST /v1/chat/completions (and POST /v1/brain/simple) must include the secret in one of these ways:
+
+
+curl -s -X POST 'http://127.0.0.1:8000/v1/chat/completions' \
+  -H "Authorization: Bearer YOUR_SECRET_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"4.7","messages":[{"role":"user","content":"Hi"}]}'
+  
+  
+  curl -s -X POST 'http://127.0.0.1:8000/v1/chat/completions' \
+  -H "X-JARVIS-BRAIN-KEY: YOUR_SECRET_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"4.7","messages":[{"role":"user","content":"Hi"}]}'
+  
+  
+  2. Easier wrapper: POST /v1/brain/simple
+Avoids structuring messages[] wrong. Body:
+
+{
+  "prompt": "Explain what jq does in two sentences.",
+  "model": "4.7",
+  "llm_backend": "bedrock",
+  "session_id": null,
+  "notes": null
+}
+
+CURL TEST=curl -s -X POST 'http://127.0.0.1:8000/v1/brain/simple' \
+  -H "Authorization: Bearer YOUR_SECRET_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Say OK in three words"}'
+  
+ 
+  BRIDGE 
+  
+ JARVIS_BRAIN_API_KEY= X-JARVIS-BRAIN-KEY
+ VALUE STORED AT:ov2_brain_chat_key
+ 
+ curl -s http://127.0.0.1:8000/v1/brain-config
+ 
+ Use brain_chat_auth_required (boolean).
+
+Quick recap
+Situation	What to do
+Local only, nobody else on LAN
+Leave JARVIS_BRAIN_API_KEY unset.
+LAN / tunnel / VPS
+Set JARVIS_BRAIN_API_KEY, always use Bearer or X-JARVIS-BRAIN-KEY.
+Scripts / cron
+Prefer POST /v1/brain/simple + Authorization: Bearer.
+n8n via bridge
+Set the key once in .env; bridge forwards it to the brain.
+Charles’s rule applies: treat .env as secret; never commit JARVIS_BRAIN_API_KEY. If you want the same protections on /v1/memory or /screenshot next, say which routes and we can align them behind the same scheme.
+ Buttons:
+
+APPLY & SAVE — Writes to disk (odin-hud-shell.json), reloads all webviews, and reinjects ov2_brain_origin on the next HUD dom-ready.
+Swagger = HUD + /docs — Fills Swagger from the HUD URL’s origin + /docs.
+CLOSE / Escape / click backdrop — Close without applying.
+RESET DEFAULTS — Fills the form with built‑ins only; hit APPLY & SAVE if you want those written to disk.
+So you no longer rely only on pasting URLs in ACTIVE URL per tab.
+
+
+
+## Install & run
+
+   cd /home/kwatk42/jarvis
+   .venv/bin/python main.py
+   2. **Fedora/Linux build toolchain** for `node-pty` (first time): `gcc`, `gcc-c++`, `make`, `python3-devel`, `npm`.
+cd /home/kwatk42/jarvis/desktop/jarvis-odin-shell
+npm install
+npx electron-rebuild -f -w node-pty    # rerun after Electron majors upgrade
+npm start
+```
+
+___________________________________________________________________________________________________________
+
+kwatk42@Linux:~/jarvis/desktop/jarvis-odin-shell$ cd ~/jarvis && .venv/bin/python main.py
+
+START THE API FIRST=            cd ~/jarvis && .venv/bin/python main.py
+
+START THE SHELL=                cd ~/desktop/jarvis-odin-shell && npm start
+
+
+          cd /home/kwatk42/jarvis
+_________________________________________________________________________________________________________
+
+
+
+
+
+
+
+
+
+arn:aws:bedrock:us-east-1:402705370800:inference-profile/us.anthropic.claude-arn:aws:bedrock:us-east-1:402705370800:inference-profile/us.anthropic.claude-opus-4-5-20251101-v1:0opus-4-5-20251101-v1:0
+
+
+
+
+
+
+
+
+
+
+sk-LaTHpEOB87OVVST4arESfeswIsQlGJaccyxyqblV8zsqtB6U
