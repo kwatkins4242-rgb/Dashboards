@@ -1,0 +1,229 @@
+
+    python --version
+    pip --version
+ 
+    python -m venv .venv
+    source myenv/bin/activate
+    .venv\Scripts\activate
+
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+    pip install fastapi
+    pip install "uvicorn[standard]"
+    pip install python-dotenv
+    pip install httpx
+    pip install requests
+    pip install openai
+    pip install google-generativeai
+    pip install python-multipart
+    pip install aiofiles
+    pip install websockets
+    pip install pyttsx3
+    pip install SpeechRecognition
+    pip install pipwin
+    pipwin install pyaudio
+    pip install PyAudio‑0.2.14‑cp311‑cp311‑win_amd64.whl
+   
+
+    .venv\Scripts\activate
+    python start.py
+
+  
+    .venv\Scripts\activate
+     python start.py
+
+ 
+ 
+ 
+ 
+ cd /home/kwatk42/jarvis/desktop/jarvis-odin-shell
+  cd /home/kwatk42/jarvis
+   .venv/bin/python main.py
+   cd desktop/jarvis-odin-shell
+kwatk42@Linux:~/jarvis/desktop/jarvis-odin-shell$ cd ~/jarvis && .venv/bin/python main.py
+START THE API FIRST=cd ~/jarvis && .venv/bin/python main.py
+START THE SHELL=cd desktop/jarvis-odin-shell && npm start
+
+
+   cd /home/kwatk42/jarvis
+   .venv/bin/python main.py
+   2. **Fedora/Linux build toolchain** for `node-pty` (first time): `gcc`, `gcc-c++`, `make`, `python3-devel`, `npm`.
+cd /home/kwatk42/jarvis/desktop/jarvis-odin-shell
+npm install
+npx electron-rebuild -f -w node-pty    # rerun after Electron majors upgrade
+npm start
+```
+
+   
+   cd desktop/jarvis-odin-shell && npx electron-rebuild -f -w node-pty
+   
+   
+   
+   
+   
+   CURSOR AGENT
+   .cursor/agents/memory-agent.md.
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+cd /home/kwatk42/jarvis
+source .venv/bin/activate   # optional
+pip install -r requirements.txt
+pytest tests/test_integration_smoke.py -v -m "not integration"
+
+cd /home/kwatk42/jarvis
+JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/python main.py
+# or: JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+
+curl -s http://127.0.0.1:8000/v1/memory
+curl -s -X POST http://127.0.0.1:8000/v1/memory -H 'Content-Type: application/json' -d '{"content":"test line"}'
+curl -s "http://127.0.0.1:8000/screenshot?prefix=manual" | head -c 200
+curl -s -o /tmp/jarvis-tts.mp3 -X POST http://127.0.0.1:8000/voice/tts \
+  -H 'Content-Type: application/json' -d '{"text":"Jarvis offline voice check."}'
+
+curl -s http://127.0.0.1:8000/senses/health
+
+RUN_EDGE_TTS_INTEGRATION=1 JARVIS_TTS_FALLBACK_EDGE=1 pytest tests/test_integration_smoke.py::test_voice_tts_edge_live_network -v
+
+
+
+
+/home/kwatk42/jarvis/desktop/jarvis-odin-shell/ — npm install + npm start loads JARVIS_HUD_URL (default http://127.0.0.1:8000/).
+
+
+cd desktop/jarvis-odin-shell && npx electron-rebuild -f -w node-pty
+
+_____________________________________________________________________________________
+   
+   
+   
+   
+   cd /home/kwatk42/jarvis
+source .venv/bin/activate   # optional
+pip install -r requirements.txt
+pytest tests/test_integration_smoke.py -v -m "not integration"
+That covers dashboards (/ and /Jarvis_mega.html), memory (/v1/memory + /v1/context/bootstrap), screenshots (/screenshot, /vision/frame), voice (mocked ElevenLabs + error when no keys), MCP config (/v1/mcp/config), and health.
+
+Manual checks (no Bedrock/Anthropic yet)
+Brain up
+
+cd /home/kwatk42/jarvis
+JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/python main.py
+# or: JARVIS_TTS_FALLBACK_EDGE=1 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Then in another shell:
+
+Dashboard: open http://127.0.0.1:8000/ (or /Jarvis_mega.html).
+
+Memory:
+
+curl -s http://127.0.0.1:8000/v1/memory
+curl -s -X POST http://127.0.0.1:8000/v1/memory -H 'Content-Type: application/json' -d '{"content":"test line"}'
+Screenshot:
+
+curl -s "http://127.0.0.1:8000/screenshot?prefix=manual" | head -c 200
+Voice (needs JARVIS_TTS_FALLBACK_EDGE=1 and network for edge):
+
+curl -s -o /tmp/jarvis-tts.mp3 -X POST http://127.0.0.1:8000/voice/tts \
+  -H 'Content-Type: application/json' -d '{"text":"Jarvis offline voice check."}'
+ElevenLabs still works unchanged when ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID are set.
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+1. Policy subagent (triggers + behavior)
+.cursor/agents/jarvis-vision-policy.md (jarvis-vision-policy) encodes:
+
+Wake: screen snapshot + webcam still when possible; how Jarvis weighs both with the rest of context.
+Emergencies: respond immediately with safety-forward wording.
+Other people visible: explicitly offer voice vs mute + text.
+Trigger table: wake phrases, NL “what do you see”, 5‑minute rhythm, motion-after-still notes, camera failures.
+Retention: rolling vs vault vs quarantine; PII flows (quarantine until you review—no echoed secrets).
+Delegate it when vision, wake flows, privacy, or “what should Jarvis say here?” need a consistent playbook.
+
+2. API support in core/senses_api.py
+Screenshots now land under ODIN_SCREENSHOTS_DIR/rolling/ (not the root of that folder). Old behavior at the root is unchanged for files already there; new writes use rolling/.
+
+TTL: purge_rolling_screenshots() deletes captures in rolling/ older than ODIN_SCREENSHOT_RETENTION_DAYS (default 7). vault/ and quarantine/ are never auto-deleted.
+GET /wake/vision-bundle: grabs screen PNG + optional camera JPEG, saves both under rolling/, returns base64 for wiring to wake/word flow.
+POST /screenshot/promote_to_vault?filename=…: basename only, moves rolling/ → vault/.
+POST /screenshot/quarantine?filename=…: rolling/ → quarantine/ for PII holds.
+Relevant knobs:
+
+
+senses_api.py
+Lines 20-66
+SCREENSHOTS_DIR = Path(os.getenv("ODIN_SCREENSHOTS_DIR", "/tmp/jarvis_screenshots"))
+ROLLING_SUBDIR = os.getenv("ODIN_SCREENSHOTS_ROLLING_SUBDIR", "rolling")
+VAULT_SUBDIR = os.getenv("ODIN_SCREENSHOTS_VAULT_SUBDIR", "vault")
+QUARANTINE_SUBDIR = os.getenv("ODIN_SCREENSHOTS_QUARANTINE_SUBDIR", "quarantine")
+SCREENSHOT_RETENTION_DAYS = float(os.getenv("ODIN_SCREENSHOT_RETENTION_DAYS", "7"))
+def purge_rolling_screenshots() -> int:
+    ...
+
+senses_api.py
+Lines 320-356
+@router.get("/wake/vision-bundle")
+def wake_vision_bundle() -> dict[str, Any]:
+    """
+    Wake phrase helper: latest screen PNG + optional camera JPEG, both saved under rolling/
+    until promoted, quarantined, or TTL purged.
+    """
+    ...
+Still manual / next wiring (not auto‑implemented):
+
+M2_SENSES_URL in jarvis_mega.html must point at your FastAPI host so the dash can reach these routes.
+5‑minute screenshots: needs a setInterval / cron / systemd timer that hits GET /screenshot (or a thin wrapper) plus an on/off toggle you approve—policy is documented; scheduler is deliberate so it is not secretly on.
+Wake detector → vision: call GET /wake/vision-bundle from wake_word_detector’s callback when you glue that process to HTTP.
+Together with memory-agent, you get continuity from summaries and rollover; with jarvis-vision-policy + senses API you get repeatable behavior for emergencies, consent around voice vs text around others, and disk hygiene with vault/quarantine. If you want, the next small step is wiring wake_word_detector.py to hit /wake/vision-bundle once per wake—say if that should be sync HTTP or asyncio.
+
+
+Here is what was added.
+
+1. wake_word/vision_bundle_async.py
+async def fetch_wake_vision_bundle(base_url, timeout=20) — httpx.AsyncClient GET to {base}/wake/vision-bundle.
+fetch_wake_vision_bundle_blocking() — runs asyncio.run(...) so normal sync code can await the full request without an existing loop (do not use this inside an already-running asyncio loop; call the async function with await there instead).
+schedule_wake_vision_bundle() — starts a daemon thread that runs the blocking helper so Porcupine’s loop is not stalled. Optional callbacks: on_complete, on_error. Default logs filenames or camera errors.
+Defaults for base URL: M2_SENSES_URL or JARVIS_SENSES_URL, then http://127.0.0.1:8000.
+
+2. wake_word/wake_word_detector.py
+Fixed invalid first line (# WAKE WORD DETECTOR).
+New optional kwarg: vision_bundle_base_url (overrides env if set).
+Reads M2_SENSES_URL / JARVIS_SENSES_URL when the kwarg is omitted; if still empty, vision bundle is not called.
+After every on_wake(...) (real Porcupine path and simulation), calls schedule_wake_vision_bundle() so the asyncio fetch runs in the background.
+3. wake_word/__init__.py
+Makes wake_word a proper package so . imports resolve.
+Configure: set M2_SENSES_URL=http://127:port (same base as your FastAPI app that mounts the senses router) so wake triggers hit /wake/vision-bundle.
+
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

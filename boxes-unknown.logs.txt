@@ -1,0 +1,259 @@
+Broker URL: qemu+unix:///session
+Domain: boxes-unknown
+UUID: 7350e048-7194-4abc-a9cd-c7342488880a
+Persistent: yes
+Cpu time: 2660000000
+Memory: 2097152 KiB
+Max memory: 7810528 KiB
+CPUs: 8
+State: GVIR_DOMAIN_STATE_RUNNING
+URL: (null)
+Auto clipboard sync: yes
+Spice-gtk version 0.42
+Mouse mode: server
+Agent: disconnected
+
+Domain config:
+------------------------------------------------------------
+<domain type="kvm" id="1">
+  <name>boxes-unknown</name>
+  <uuid>7350e048-7194-4abc-a9cd-c7342488880a</uuid>
+  <title>kali-linux-2026</title>
+  <metadata>
+    <boxes:gnome-boxes xmlns:boxes="https://wiki.gnome.org/Apps/Boxes">
+      <os-state>importing</os-state>
+      <media>/home/kwatk42/Downloads/kali-linux-2026.1-virtualbox-amd64 (2)/kali-linux-2026.1-virtualbox-amd64.vbox</media>
+    </boxes:gnome-boxes>
+  </metadata>
+  <memory unit="KiB">2097152</memory>
+  <currentMemory unit="KiB">2097152</currentMemory>
+  <vcpu placement="static">8</vcpu>
+  <os>
+    <type arch="x86_64" machine="pc-i440fx-10.2">hvm</type>
+    <boot dev="cdrom"/>
+    <boot dev="hd"/>
+    <bootmenu enable="yes"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="host-passthrough" check="none" migratable="on">
+    <topology sockets="1" dies="1" clusters="1" cores="4" threads="2"/>
+  </cpu>
+  <clock offset="localtime">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>destroy</on_reboot>
+  <on_crash>destroy</on_crash>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2" cache="writeback"/>
+      <source file="/home/kwatk42/.local/share/gnome-boxes/images/boxes-unknown" index="2"/>
+      <backingStore/>
+      <target dev="hda" bus="ide"/>
+      <alias name="ide0-0-0"/>
+      <address type="drive" controller="0" bus="0" target="0" unit="0"/>
+    </disk>
+    <disk type="file" device="cdrom">
+      <driver name="qemu"/>
+      <target dev="hdc" bus="ide"/>
+      <readonly/>
+      <alias name="ide0-1-0"/>
+      <address type="drive" controller="0" bus="1" target="0" unit="0"/>
+    </disk>
+    <controller type="usb" index="0" model="ich9-ehci1">
+      <alias name="usb"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x7"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci1">
+      <alias name="usb"/>
+      <master startport="0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x0" multifunction="on"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci2">
+      <alias name="usb"/>
+      <master startport="2"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x1"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci3">
+      <alias name="usb"/>
+      <master startport="4"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x2"/>
+    </controller>
+    <controller type="pci" index="0" model="pci-root">
+      <alias name="pci.0"/>
+    </controller>
+    <controller type="ide" index="0">
+      <alias name="ide"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x01" function="0x1"/>
+    </controller>
+    <controller type="virtio-serial" index="0">
+      <alias name="virtio-serial0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x06" function="0x0"/>
+    </controller>
+    <controller type="ccid" index="0">
+      <alias name="ccid0"/>
+      <address type="usb" bus="0" port="1"/>
+    </controller>
+    <interface type="user">
+      <mac address="52:54:00:4c:61:82"/>
+      <model type="rtl8139"/>
+      <alias name="net0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x03" function="0x0"/>
+    </interface>
+    <smartcard mode="passthrough" type="spicevmc">
+      <alias name="smartcard0"/>
+      <address type="ccid" controller="0" slot="0"/>
+    </smartcard>
+    <serial type="pty">
+      <source path="/dev/pts/0"/>
+      <target type="isa-serial" port="0">
+        <model name="isa-serial"/>
+      </target>
+      <alias name="serial0"/>
+    </serial>
+    <console type="pty" tty="/dev/pts/0">
+      <source path="/dev/pts/0"/>
+      <target type="serial" port="0"/>
+      <alias name="serial0"/>
+    </console>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0" state="disconnected"/>
+      <alias name="channel0"/>
+      <address type="virtio-serial" controller="0" bus="0" port="1"/>
+    </channel>
+    <channel type="spiceport">
+      <source channel="org.spice-space.webdav.0"/>
+      <target type="virtio" name="org.spice-space.webdav.0" state="disconnected"/>
+      <alias name="channel1"/>
+      <address type="virtio-serial" controller="0" bus="0" port="2"/>
+    </channel>
+    <input type="mouse" bus="ps2">
+      <alias name="input0"/>
+    </input>
+    <input type="keyboard" bus="ps2">
+      <alias name="input1"/>
+    </input>
+    <graphics type="spice">
+      <listen type="none"/>
+      <image compression="off"/>
+      <gl enable="no"/>
+    </graphics>
+    <sound model="ich6">
+      <alias name="sound0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x04" function="0x0"/>
+    </sound>
+    <audio id="1" type="spice"/>
+    <video>
+      <model type="qxl" ram="65536" vram="65536" vgamem="16384" heads="1" primary="yes">
+        <acceleration accel3d="no"/>
+      </model>
+      <alias name="video0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x02" function="0x0"/>
+    </video>
+    <redirdev bus="usb" type="spicevmc">
+      <alias name="redir0"/>
+      <address type="usb" bus="0" port="2"/>
+    </redirdev>
+    <redirdev bus="usb" type="spicevmc">
+      <alias name="redir1"/>
+      <address type="usb" bus="0" port="3"/>
+    </redirdev>
+    <redirdev bus="usb" type="spicevmc">
+      <alias name="redir2"/>
+      <address type="usb" bus="0" port="4"/>
+    </redirdev>
+    <redirdev bus="usb" type="spicevmc">
+      <alias name="redir3"/>
+      <address type="usb" bus="0" port="5"/>
+    </redirdev>
+    <memballoon model="virtio">
+      <alias name="balloon0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x07" function="0x0"/>
+    </memballoon>
+  </devices>
+  <seclabel type="dynamic" model="selinux" relabel="yes">
+    <label>unconfined_u:unconfined_r:svirt_t:s0:c276,c841</label>
+    <imagelabel>unconfined_u:object_r:svirt_image_t:s0:c276,c841</imagelabel>
+  </seclabel>
+</domain>
+------------------------------------------------------------
+
+QEMU log:
+------------------------------------------------------------
+2026-05-12 19:34:12.740+0000: starting up libvirt version: 12.0.0, package: 3.fc44 (Fedora Project, 2026-01-26-10:19:53, ), qemu version: 10.2.2qemu-10.2.2-1.fc44, kernel: 7.0.4-200.fc44.x86_64, hostname: fedora
+LC_ALL=C \
+PATH=/home/kwatk42/.nvm/versions/node/v24.15.0/bin:/home/kwatk42/.local/bin:/home/kwatk42/bin:/usr/local/bin:/usr/bin:/var/lib/snapd/snap/bin \
+HOME=/home/kwatk42 \
+USER=kwatk42 \
+LOGNAME=kwatk42 \
+XDG_CACHE_HOME=/home/kwatk42/.config/libvirt/qemu/lib/domain-1-boxes-unknown/.cache \
+/usr/bin/qemu-system-x86_64 \
+-name guest=boxes-unknown,debug-threads=on \
+-S \
+-object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/home/kwatk42/.config/libvirt/qemu/lib/domain-1-boxes-unknown/master-key.aes"}' \
+-machine pc-i440fx-10.2,usb=off,dump-guest-core=off,memory-backend=pc.ram,hpet=off,acpi=on \
+-accel kvm \
+-cpu host,migratable=on \
+-m size=2097152k \
+-object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":2147483648}' \
+-overcommit mem-lock=off \
+-smp 8,sockets=1,dies=1,clusters=1,cores=4,threads=2 \
+-uuid 7350e048-7194-4abc-a9cd-c7342488880a \
+-no-user-config \
+-nodefaults \
+-chardev socket,id=charmonitor,fd=26,server=on,wait=off \
+-mon chardev=charmonitor,id=monitor,mode=control \
+-rtc base=localtime,driftfix=slew \
+-global kvm-pit.lost_tick_policy=delay \
+-no-shutdown \
+-global PIIX4_PM.disable_s3=1 \
+-global PIIX4_PM.disable_s4=1 \
+-boot menu=on,strict=on \
+-device '{"driver":"ich9-usb-ehci1","id":"usb","bus":"pci.0","addr":"0x5.0x7"}' \
+-device '{"driver":"ich9-usb-uhci1","masterbus":"usb.0","firstport":0,"bus":"pci.0","multifunction":true,"addr":"0x5"}' \
+-device '{"driver":"ich9-usb-uhci2","masterbus":"usb.0","firstport":2,"bus":"pci.0","addr":"0x5.0x1"}' \
+-device '{"driver":"ich9-usb-uhci3","masterbus":"usb.0","firstport":4,"bus":"pci.0","addr":"0x5.0x2"}' \
+-device '{"driver":"virtio-serial-pci","id":"virtio-serial0","bus":"pci.0","addr":"0x6"}' \
+-device '{"driver":"usb-ccid","id":"ccid0","bus":"usb.0","port":"1"}' \
+-blockdev '{"driver":"file","filename":"/home/kwatk42/.local/share/gnome-boxes/images/boxes-unknown","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap","cache":{"direct":false,"no-flush":false}}' \
+-blockdev '{"node-name":"libvirt-2-format","read-only":false,"cache":{"direct":false,"no-flush":false},"driver":"qcow2","file":"libvirt-2-storage","backing":null}' \
+-device '{"driver":"ide-hd","bus":"ide.0","unit":0,"drive":"libvirt-2-format","id":"ide0-0-0","bootindex":2,"write-cache":"on"}' \
+-device '{"driver":"ide-cd","bus":"ide.1","unit":0,"id":"ide0-1-0","bootindex":1}' \
+-netdev '{"type":"user","id":"hostnet0"}' \
+-device '{"driver":"rtl8139","netdev":"hostnet0","id":"net0","mac":"52:54:00:4c:61:82","bus":"pci.0","addr":"0x3"}' \
+-chardev spicevmc,id=charsmartcard0,name=smartcard \
+-device '{"driver":"ccid-card-passthru","chardev":"charsmartcard0","id":"smartcard0","bus":"ccid0.0"}' \
+-chardev pty,id=charserial0 \
+-device '{"driver":"isa-serial","chardev":"charserial0","id":"serial0","index":0}' \
+-chardev spicevmc,id=charchannel0,name=vdagent \
+-device '{"driver":"virtserialport","bus":"virtio-serial0.0","nr":1,"chardev":"charchannel0","id":"channel0","name":"com.redhat.spice.0"}' \
+-chardev spiceport,id=charchannel1,name=org.spice-space.webdav.0 \
+-device '{"driver":"virtserialport","bus":"virtio-serial0.0","nr":2,"chardev":"charchannel1","id":"channel1","name":"org.spice-space.webdav.0"}' \
+-audiodev '{"id":"audio1","driver":"spice"}' \
+-spice port=0,disable-ticketing=on,image-compression=off,seamless-migration=on \
+-device '{"driver":"qxl-vga","id":"video0","max_outputs":1,"ram_size":67108864,"vram_size":67108864,"vram64_size_mb":0,"vgamem_mb":16,"bus":"pci.0","addr":"0x2"}' \
+-device '{"driver":"intel-hda","id":"sound0","bus":"pci.0","addr":"0x4"}' \
+-device '{"driver":"hda-duplex","id":"sound0-codec0","bus":"sound0.0","cad":0,"audiodev":"audio1"}' \
+-chardev spicevmc,id=charredir0,name=usbredir \
+-device '{"driver":"usb-redir","chardev":"charredir0","id":"redir0","bus":"usb.0","port":"2"}' \
+-chardev spicevmc,id=charredir1,name=usbredir \
+-device '{"driver":"usb-redir","chardev":"charredir1","id":"redir1","bus":"usb.0","port":"3"}' \
+-chardev spicevmc,id=charredir2,name=usbredir \
+-device '{"driver":"usb-redir","chardev":"charredir2","id":"redir2","bus":"usb.0","port":"4"}' \
+-chardev spicevmc,id=charredir3,name=usbredir \
+-device '{"driver":"usb-redir","chardev":"charredir3","id":"redir3","bus":"usb.0","port":"5"}' \
+-device '{"driver":"virtio-balloon-pci","id":"balloon0","bus":"pci.0","addr":"0x7"}' \
+-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
+-msg timestamp=on
+char device redirected to /dev/pts/0 (label charserial0)
+------------------------------------------------------------
